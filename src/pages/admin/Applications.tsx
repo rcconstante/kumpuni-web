@@ -14,11 +14,15 @@ import {
   Mail,
   Search,
 } from 'lucide-react';
-import { MOCK_APPLICATIONS, BusinessApplication } from '../../data/mockApplications';
+import {
+  getBusinessApplications,
+  updateBusinessApplicationStatus,
+  type BusinessApplication,
+} from '../../data/mockApplications';
 
 export default function AdminApplicationsPage() {
   const navigate = useNavigate();
-  const [apps, setApps] = useState<BusinessApplication[]>(MOCK_APPLICATIONS);
+  const [apps, setApps] = useState<BusinessApplication[]>(() => getBusinessApplications());
   const [filter, setFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<BusinessApplication | null>(null);
@@ -43,8 +47,10 @@ export default function AdminApplicationsPage() {
   });
 
   const updateStatus = (id: string, status: 'verified' | 'rejected') => {
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-    if (selected?.id === id) setSelected(null);
+    updateBusinessApplicationStatus(id, status);
+    const nextApps = getBusinessApplications();
+    setApps(nextApps);
+    setSelected(nextApps.find((application) => application.id === id) ?? null);
   };
 
   return (
@@ -124,11 +130,11 @@ export default function AdminApplicationsPage() {
                     <tr key={app.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {app.imageUrl ? (
+                          {app.logoUrl || app.imageUrl ? (
                             <img
-                              src={app.imageUrl}
+                              src={app.logoUrl || app.imageUrl}
                               alt={app.name}
-                              className="w-10 h-10 rounded-lg object-cover border border-[#E5E7EB]"
+                              className="w-10 h-10 rounded-lg object-contain border border-[#E5E7EB] bg-white"
                             />
                           ) : (
                             <div className="w-10 h-10 bg-[#E8F5E9] rounded-lg flex items-center justify-center text-sm font-bold text-[#2E7D32]">
@@ -227,9 +233,19 @@ export default function AdminApplicationsPage() {
               <DetailRow label="Phone" value={selected.phone} />
               <DetailRow label="Email" value={selected.email} />
               <DetailRow label="Description" value={selected.description} />
+              {selected.logoUrl && (
+                <div>
+                  <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Business Logo</span>
+                  <img
+                    src={selected.logoUrl}
+                    alt={`${selected.name} logo`}
+                    className="mt-2 w-28 h-28 rounded-xl object-contain border border-[#E5E7EB] bg-white"
+                  />
+                </div>
+              )}
               {selected.imageUrl && (
                 <div>
-                  <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Business Image</span>
+                  <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Highlight Picture</span>
                   <img
                     src={selected.imageUrl}
                     alt={selected.name}

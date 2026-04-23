@@ -1,9 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, Store, Users, LogOut, Settings } from 'lucide-react';
-import { MOCK_APPLICATIONS } from '../../data/mockApplications';
+import {
+  getBusinessApplications,
+  getVerifiedBusinessListings,
+} from '../../data/mockApplications';
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const applications = getBusinessApplications();
+  const businesses = getVerifiedBusinessListings();
 
   const isAuth = localStorage.getItem('kumpuni_admin');
   if (!isAuth) {
@@ -11,9 +16,9 @@ export default function AdminDashboardPage() {
     return null;
   }
 
-  const pending = MOCK_APPLICATIONS.filter((a) => a.status === 'pending');
-  const verified = MOCK_APPLICATIONS.filter((a) => a.status === 'verified');
-  const rejected = MOCK_APPLICATIONS.filter((a) => a.status === 'rejected');
+  const pending = applications.filter((application) => application.status === 'pending');
+  const verified = businesses;
+  const rejected = applications.filter((application) => application.status === 'rejected');
 
   const logout = () => {
     localStorage.removeItem('kumpuni_admin');
@@ -59,7 +64,7 @@ export default function AdminDashboardPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-            <StatCard label="Total Applications" value={MOCK_APPLICATIONS.length} color="bg-[#E8F5E9] text-[#2E7D32]" />
+            <StatCard label="Total Applications" value={applications.length} color="bg-[#E8F5E9] text-[#2E7D32]" />
             <StatCard label="Pending Review" value={pending.length} color="bg-[#FFF8E1] text-[#F57F17]" />
             <StatCard label="Verified" value={verified.length} color="bg-[#E3F2FD] text-[#1565C0]" />
             <StatCard label="Rejected" value={rejected.length} color="bg-[#FCE4EC] text-[#C62828]" />

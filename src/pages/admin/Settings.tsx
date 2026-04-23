@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -12,7 +12,10 @@ import {
   EyeOff,
   ShieldCheck,
 } from 'lucide-react';
-import { MOCK_APPLICATIONS } from '../../data/mockApplications';
+import {
+  getBusinessApplications,
+  getVerifiedBusinessListings,
+} from '../../data/mockApplications';
 
 type AdminCredentials = {
   email: string;
@@ -81,14 +84,10 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const pendingCount = useMemo(
-    () => MOCK_APPLICATIONS.filter((a) => a.status === 'pending').length,
-    []
-  );
-  const verifiedCount = useMemo(
-    () => MOCK_APPLICATIONS.filter((a) => a.status === 'verified').length,
-    []
-  );
+  const pendingCount = getBusinessApplications().filter(
+    (application) => application.status === 'pending'
+  ).length;
+  const verifiedCount = getVerifiedBusinessListings().length;
 
   const savePreferences = () => {
     setError('');

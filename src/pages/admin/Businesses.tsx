@@ -15,12 +15,17 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { MOCK_APPLICATIONS, BusinessApplication } from '../../data/mockApplications';
+import {
+  deleteBusinessListing,
+  getVerifiedBusinessListings,
+  updateBusinessListing,
+  type BusinessApplication,
+} from '../../data/mockApplications';
 
 export default function AdminBusinessesPage() {
   const navigate = useNavigate();
   const [businesses, setBusinesses] = useState<BusinessApplication[]>(
-    MOCK_APPLICATIONS.filter((a) => a.status === 'verified')
+    () => getVerifiedBusinessListings()
   );
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<BusinessApplication | null>(null);
@@ -42,20 +47,25 @@ export default function AdminBusinessesPage() {
   });
 
   const updateBusiness = (updated: BusinessApplication) => {
-    setBusinesses((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    updateBusinessListing(updated.id, updated);
+    setBusinesses(getVerifiedBusinessListings());
     setEditing(null);
   };
 
   const deleteBusiness = (id: string) => {
-    setBusinesses((prev) => prev.filter((b) => b.id !== id));
+    deleteBusinessListing(id);
+    setBusinesses(getVerifiedBusinessListings());
+    if (editing?.id === id) {
+      setEditing(null);
+    }
   };
 
-  const onBusinessImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  const onBusinessImageUpload = async (field: 'logoUrl' | 'imageUrl', e: ChangeEvent<HTMLInputElement>) => {
     if (!editing) return;
     const file = e.target.files?.[0];
     if (!file) return;
     const imageUrl = await readFileAsDataUrl(file);
-    setEditing({ ...editing, imageUrl });
+    setEditing({ ...editing, [field]: imageUrl });
     e.target.value = '';
   };
 
@@ -112,11 +122,11 @@ export default function AdminBusinessesPage() {
             {filtered.map((biz) => (
               <div key={biz.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
-                  {biz.imageUrl ? (
+                  {biz.logoUrl || biz.imageUrl ? (
                     <img
-                      src={biz.imageUrl}
+                      src={biz.logoUrl || biz.imageUrl}
                       alt={biz.name}
-                      className="w-12 h-12 rounded-xl object-cover border border-[#E5E7EB]"
+                      className="w-12 h-12 rounded-xl object-contain border border-[#E5E7EB] bg-white"
                     />
                   ) : (
                     <div className="w-12 h-12 bg-[#E8F5E9] rounded-xl flex items-center justify-center text-lg font-bold text-[#2E7D32]">
@@ -196,34 +206,66 @@ export default function AdminBusinessesPage() {
               className="p-6 space-y-4"
             >
               <Field label="Business Name" value={editing.name} onChange={(v) => setEditing({ ...editing, name: v })} />
-              <Field label="Category" value={editing.category} onChange={(v) => setEditing({ ...editing, category: v })} />
+              <Field
+                label="Category"
+                value={editing.category}
+                onChange={(v) =>
+                  setEditing({ ...editing, category: v as BusinessApplication['category'] })
+                }
+              />
               <Field label="Address" value={editing.address} onChange={(v) => setEditing({ ...editing, address: v })} />
               <Field label="City" value={editing.city} onChange={(v) => setEditing({ ...editing, city: v })} />
               <Field label="Country" value={editing.country} onChange={(v) => setEditing({ ...editing, country: v })} />
               <Field label="Phone" value={editing.phone} onChange={(v) => setEditing({ ...editing, phone: v })} />
               <Field label="Email" value={editing.email} onChange={(v) => setEditing({ ...editing, email: v })} />
-              <Field label="Google Maps URL" value={editing.googleMapsUrl} onChange={(v) => setEditing({ ...editing, googleMapsUrl: v })} />
+              <Field label="Google Maps Link" value={editing.googleMapsUrl} onChange={(v) => setEditing({ ...editing, googleMapsUrl: v })} />
               <Field label="Latitude" value={String(editing.lat)} onChange={(v) => setEditing({ ...editing, lat: parseFloat(v) || 0 })} />
               <Field label="Longitude" value={String(editing.lng)} onChange={(v) => setEditing({ ...editing, lng: parseFloat(v) || 0 })} />
               <Field
-                label="Image URL"
+                label="Business Logo URL"
+                value={editing.logoUrl || ''}
+                onChange={(v) => setEditing({ ...editing, logoUrl: v })}
+              />
+              <Field
+                label="Highlight Picture URL"
                 value={editing.imageUrl || ''}
                 onChange={(v) => setEditing({ ...editing, imageUrl: v })}
               />
 
               <div>
-                <label className="block text-sm font-semibold text-[#374151] mb-1">Upload Business Image</label>
+                <label className="block text-sm font-semibold text-[#374151] mb-1">Upload Business Logo</label>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={onBusinessImageUpload}
+                  onChange={(e) => onBusinessImageUpload('logoUrl', e)}
                   className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2 text-sm"
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-[#374151] mb-1">Upload Highlight Picture</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => onBusinessImageUpload('imageUrl', e)}
+                  className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2 text-sm"
+                />
+              </div>
+
+              {editing.logoUrl && (
+                <div>
+                  <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Logo Preview</p>
+                  <img
+                    src={editing.logoUrl}
+                    alt={`${editing.name} logo preview`}
+                    className="w-32 h-32 rounded-xl object-contain border border-[#E5E7EB] bg-white"
+                  />
+                </div>
+              )}
+
               {editing.imageUrl && (
                 <div>
-                  <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Preview</p>
+                  <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Highlight Preview</p>
                   <img
                     src={editing.imageUrl}
                     alt={`${editing.name} preview`}
