@@ -1,6 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+
+type AdminCredentials = {
+  email: string;
+  password: string;
+};
+
+const CREDENTIALS_KEY = 'kumpuni_admin_credentials';
+
+function getCredentials(): AdminCredentials {
+  try {
+    const stored = localStorage.getItem(CREDENTIALS_KEY);
+    if (!stored) {
+      return { email: 'admin@kumpuni.com', password: 'admin123' };
+    }
+    const parsed = JSON.parse(stored) as Partial<AdminCredentials>;
+    return {
+      email: parsed.email || 'admin@kumpuni.com',
+      password: parsed.password || 'admin123',
+    };
+  } catch {
+    return { email: 'admin@kumpuni.com', password: 'admin123' };
+  }
+}
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
@@ -14,15 +37,16 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError('');
 
-    // Demo credentials
-    if (email === 'admin@kumpuni.com' && password === 'admin123') {
+    const credentials = getCredentials();
+
+    if (email === credentials.email && password === credentials.password) {
       setLoading(true);
       setTimeout(() => {
         localStorage.setItem('kumpuni_admin', JSON.stringify({ email, loggedInAt: Date.now() }));
         navigate('/admin/dashboard');
       }, 800);
     } else {
-      setError('Invalid credentials. Use admin@kumpuni.com / admin123');
+      setError(`Invalid credentials. Use ${credentials.email}`);
     }
   };
 
@@ -30,9 +54,7 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-[#6DBE75] rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <Shield size={32} className="text-white" />
-          </div>
+          <img src="/logo.png" alt="Kumpuni" className="w-16 h-16 rounded-2xl mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-[#1F2937]">Kumpuni Admin</h1>
           <p className="text-sm text-[#6B7280] mt-1">Business verification portal</p>
         </div>
@@ -93,7 +115,7 @@ export default function AdminLoginPage() {
           </button>
 
           <p className="text-center text-xs text-[#9CA3AF]">
-            Demo: <span className="font-mono">admin@kumpuni.com</span> / <span className="font-mono">admin123</span>
+            Demo default: <span className="font-mono">admin@kumpuni.com</span> / <span className="font-mono">admin123</span>
           </p>
         </form>
       </div>

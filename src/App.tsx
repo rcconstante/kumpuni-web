@@ -6,6 +6,7 @@ import AdminLoginPage from './pages/admin/Login';
 import AdminDashboardPage from './pages/admin/Dashboard';
 import AdminApplicationsPage from './pages/admin/Applications';
 import AdminBusinessesPage from './pages/admin/Businesses';
+import AdminSettingsPage from './pages/admin/Settings';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
         <Route path="/admin/applications" element={<AdminApplicationsPage />} />
         <Route path="/admin/businesses" element={<AdminBusinessesPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
       </Routes>
     </BrowserRouter>
   );

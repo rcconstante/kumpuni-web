@@ -72,6 +72,34 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Looking For a Fixer ─── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 -mt-10 relative z-20">
+        <div className="bg-white border border-[#E5E7EB] rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
+          <img
+            src="/fix.png"
+            alt="Looking for a fixer"
+            className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
+          />
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-sm font-semibold text-[#6DBE75] uppercase tracking-wide mb-1">
+              Looking For a Fixer?
+            </p>
+            <h3 className="text-2xl font-bold text-[#1F2937] mb-2">
+              Find trusted local pros in minutes.
+            </h3>
+            <p className="text-[#6B7280] text-sm sm:text-base">
+              Browse verified fixers, compare ratings, and contact the right expert for the job.
+            </p>
+          </div>
+          <a
+            href="#download"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#6DBE75] text-white px-6 py-3 rounded-2xl font-semibold hover:bg-[#5CAE65] transition-colors"
+          >
+            Open Find Fixer <ChevronRight size={18} />
+          </a>
+        </div>
+      </section>
+
       {/* ─── App Screenshots ─── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8 py-28 lg:py-40">
         <div className="text-center mb-20">
@@ -321,7 +349,7 @@ export default function LandingPage() {
       <footer className="border-t border-[#E5E7EB]">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-14 flex flex-col sm:flex-row items-center justify-between gap-5">
           <div className="flex items-center gap-3">
-            <img src="/assistant.png" alt="Kumpuni" className="w-11 h-11 rounded-xl" />
+            <img src="/logo.png" alt="Kumpuni" className="w-11 h-11 rounded-xl" />
             <span className="font-semibold text-base text-[#1F2937]">Kumpuni</span>
           </div>
           <div className="flex items-center gap-8 text-base text-[#9CA3AF]">

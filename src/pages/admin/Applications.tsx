@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Store,
+  Settings,
   CheckCircle,
   XCircle,
   LogOut,
@@ -52,9 +53,7 @@ export default function AdminApplicationsPage() {
       <aside className="w-64 bg-white border-r border-[#E5E7EB] hidden md:flex flex-col">
         <div className="p-6 border-b border-[#E5E7EB]">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#6DBE75] rounded-lg flex items-center justify-center">
-              <Store size={18} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="Kumpuni" className="w-9 h-9 rounded-lg" />
             <span className="font-bold text-[#1F2937]">Kumpuni Admin</span>
           </div>
         </div>
@@ -62,6 +61,7 @@ export default function AdminApplicationsPage() {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" onClick={() => navigate('/admin/dashboard')} />
           <SidebarItem icon={ClipboardList} label="Applications" active count={apps.filter(a => a.status === 'pending').length} onClick={() => navigate('/admin/applications')} />
           <SidebarItem icon={Store} label="Businesses" onClick={() => navigate('/admin/businesses')} />
+          <SidebarItem icon={Settings} label="Settings" onClick={() => navigate('/admin/settings')} />
         </nav>
         <div className="p-4 border-t border-[#E5E7EB]">
           <button
@@ -123,8 +123,23 @@ export default function AdminApplicationsPage() {
                   {filtered.map((app) => (
                     <tr key={app.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-[#1F2937]">{app.name}</div>
-                        <div className="text-xs text-[#9CA3AF]">{app.email}</div>
+                        <div className="flex items-center gap-3">
+                          {app.imageUrl ? (
+                            <img
+                              src={app.imageUrl}
+                              alt={app.name}
+                              className="w-10 h-10 rounded-lg object-cover border border-[#E5E7EB]"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-[#E8F5E9] rounded-lg flex items-center justify-center text-sm font-bold text-[#2E7D32]">
+                              {app.name[0]}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium text-[#1F2937]">{app.name}</div>
+                            <div className="text-xs text-[#9CA3AF]">{app.email}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="bg-[#E8F5E9] text-[#2E7D32] text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -212,6 +227,16 @@ export default function AdminApplicationsPage() {
               <DetailRow label="Phone" value={selected.phone} />
               <DetailRow label="Email" value={selected.email} />
               <DetailRow label="Description" value={selected.description} />
+              {selected.imageUrl && (
+                <div>
+                  <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Business Image</span>
+                  <img
+                    src={selected.imageUrl}
+                    alt={selected.name}
+                    className="mt-2 w-full h-44 rounded-xl object-cover border border-[#E5E7EB]"
+                  />
+                </div>
+              )}
               <div>
                 <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Google Maps</span>
                 <a

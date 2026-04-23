@@ -13,6 +13,7 @@ export interface BusinessApplication {
   status: 'pending' | 'verified' | 'rejected';
   lat: number;
   lng: number;
+  imageUrl?: string;
 }
 
 export const MOCK_APPLICATIONS: BusinessApplication[] = [
@@ -31,6 +32,7 @@ export const MOCK_APPLICATIONS: BusinessApplication[] = [
     status: 'pending',
     lat: 14.5995,
     lng: 120.9842,
+    imageUrl: '/fix.png',
   },
   {
     id: 'app-2',
@@ -47,6 +49,7 @@ export const MOCK_APPLICATIONS: BusinessApplication[] = [
     status: 'pending',
     lat: 52.52,
     lng: 13.405,
+    imageUrl: '/fix.png',
   },
   {
     id: 'app-3',
@@ -63,5 +66,6 @@ export const MOCK_APPLICATIONS: BusinessApplication[] = [
     status: 'verified',
     lat: -1.286389,
     lng: 36.817223,
+    imageUrl: '/fix.png',
   },
 ];

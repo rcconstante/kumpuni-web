@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { ChangeEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ClipboardList,
   Store,
+  Settings,
   LogOut,
   ExternalLink,
   MapPin,
@@ -49,15 +50,22 @@ export default function AdminBusinessesPage() {
     setBusinesses((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const onBusinessImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!editing) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const imageUrl = await readFileAsDataUrl(file);
+    setEditing({ ...editing, imageUrl });
+    e.target.value = '';
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7F5] flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-[#E5E7EB] hidden md:flex flex-col">
         <div className="p-6 border-b border-[#E5E7EB]">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#6DBE75] rounded-lg flex items-center justify-center">
-              <Store size={18} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="Kumpuni" className="w-9 h-9 rounded-lg" />
             <span className="font-bold text-[#1F2937]">Kumpuni Admin</span>
           </div>
         </div>
@@ -65,6 +73,7 @@ export default function AdminBusinessesPage() {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" onClick={() => navigate('/admin/dashboard')} />
           <SidebarItem icon={ClipboardList} label="Applications" onClick={() => navigate('/admin/applications')} />
           <SidebarItem icon={Store} label="Businesses" active count={businesses.length} onClick={() => navigate('/admin/businesses')} />
+          <SidebarItem icon={Settings} label="Settings" onClick={() => navigate('/admin/settings')} />
         </nav>
         <div className="p-4 border-t border-[#E5E7EB]">
           <button
@@ -103,9 +112,17 @@ export default function AdminBusinessesPage() {
             {filtered.map((biz) => (
               <div key={biz.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-12 h-12 bg-[#E8F5E9] rounded-xl flex items-center justify-center text-lg font-bold text-[#2E7D32]">
-                    {biz.name[0]}
-                  </div>
+                  {biz.imageUrl ? (
+                    <img
+                      src={biz.imageUrl}
+                      alt={biz.name}
+                      className="w-12 h-12 rounded-xl object-cover border border-[#E5E7EB]"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-[#E8F5E9] rounded-xl flex items-center justify-center text-lg font-bold text-[#2E7D32]">
+                      {biz.name[0]}
+                    </div>
+                  )}
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => setEditing(biz)}
@@ -188,6 +205,32 @@ export default function AdminBusinessesPage() {
               <Field label="Google Maps URL" value={editing.googleMapsUrl} onChange={(v) => setEditing({ ...editing, googleMapsUrl: v })} />
               <Field label="Latitude" value={String(editing.lat)} onChange={(v) => setEditing({ ...editing, lat: parseFloat(v) || 0 })} />
               <Field label="Longitude" value={String(editing.lng)} onChange={(v) => setEditing({ ...editing, lng: parseFloat(v) || 0 })} />
+              <Field
+                label="Image URL"
+                value={editing.imageUrl || ''}
+                onChange={(v) => setEditing({ ...editing, imageUrl: v })}
+              />
+
+              <div>
+                <label className="block text-sm font-semibold text-[#374151] mb-1">Upload Business Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onBusinessImageUpload}
+                  className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2 text-sm"
+                />
+              </div>
+
+              {editing.imageUrl && (
+                <div>
+                  <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Preview</p>
+                  <img
+                    src={editing.imageUrl}
+                    alt={`${editing.name} preview`}
+                    className="w-full h-40 rounded-xl object-cover border border-[#E5E7EB]"
+                  />
+                </div>
+              )}
 
               <div className="pt-4 flex gap-3">
                 <button
@@ -245,4 +288,13 @@ function SidebarItem({ icon: Icon, label, active, count, onClick }: any) {
       )}
     </button>
   );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.readAsDataURL(file);
+  });
 }

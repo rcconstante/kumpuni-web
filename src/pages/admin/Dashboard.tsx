@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, Store, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Store, Users, LogOut, Settings } from 'lucide-react';
 import { MOCK_APPLICATIONS } from '../../data/mockApplications';
 
 export default function AdminDashboardPage() {
@@ -26,9 +26,7 @@ export default function AdminDashboardPage() {
       <aside className="w-64 bg-white border-r border-[#E5E7EB] hidden md:flex flex-col">
         <div className="p-6 border-b border-[#E5E7EB]">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#6DBE75] rounded-lg flex items-center justify-center">
-              <Store size={18} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="Kumpuni" className="w-9 h-9 rounded-lg" />
             <span className="font-bold text-[#1F2937]">Kumpuni Admin</span>
           </div>
         </div>
@@ -36,6 +34,7 @@ export default function AdminDashboardPage() {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" active onClick={() => navigate('/admin/dashboard')} />
           <SidebarItem icon={ClipboardList} label="Applications" count={pending.length} onClick={() => navigate('/admin/applications')} />
           <SidebarItem icon={Store} label="Businesses" count={verified.length} onClick={() => navigate('/admin/businesses')} />
+          <SidebarItem icon={Settings} label="Settings" onClick={() => navigate('/admin/settings')} />
         </nav>
         <div className="p-4 border-t border-[#E5E7EB]">
           <button onClick={logout} className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-[#6B7280] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors">
