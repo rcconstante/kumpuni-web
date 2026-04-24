@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/Landing';
 import PrivacyPage from './pages/Privacy';
 import TermsPage from './pages/Terms';
+import LicensePage from './pages/License';
 import AdminLoginPage from './pages/admin/Login';
 import AdminDashboardPage from './pages/admin/Dashboard';
 import AdminApplicationsPage from './pages/admin/Applications';
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/license" element={<LicensePage />} />
           <Route path="/admin" element={<AdminLoginPage />} />
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/applications" element={<AdminApplicationsPage />} />

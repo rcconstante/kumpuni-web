@@ -359,6 +359,9 @@ export default function LandingPage() {
             <a href="/terms" className="hover:text-[#6DBE75] transition-colors">
               Terms
             </a>
+            <a href="/license" className="hover:text-[#6DBE75] transition-colors">
+              License
+            </a>
           </div>
           <p className="text-sm text-[#9CA3AF]">
             Made by{' '}
