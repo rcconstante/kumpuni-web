@@ -35,20 +35,24 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       setSession(data.session);
-      setIsAdmin(await checkIsAdmin(data.session?.user.id));
       setLoading(false);
+      checkIsAdmin(data.session?.user.id).then(ok => {
+        if (!cancelled) setIsAdmin(ok);
+      });
     }).catch(() => {
       if (!cancelled) setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (cancelled) return;
       setSession(nextSession);
-      setIsAdmin(await checkIsAdmin(nextSession?.user.id));
       setLoading(false);
+      checkIsAdmin(nextSession?.user.id).then(ok => {
+        if (!cancelled) setIsAdmin(ok);
+      });
     });
 
     return () => {
