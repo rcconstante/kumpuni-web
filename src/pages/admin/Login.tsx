@@ -1,52 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
-
-type AdminCredentials = {
-  email: string;
-  password: string;
-};
-
-const CREDENTIALS_KEY = 'kumpuni_admin_credentials';
-
-function getCredentials(): AdminCredentials {
-  try {
-    const stored = localStorage.getItem(CREDENTIALS_KEY);
-    if (!stored) {
-      return { email: 'admin@kumpuni.com', password: 'admin123' };
-    }
-    const parsed = JSON.parse(stored) as Partial<AdminCredentials>;
-    return {
-      email: parsed.email || 'admin@kumpuni.com',
-      password: parsed.password || 'admin123',
-    };
-  } catch {
-    return { email: 'admin@kumpuni.com', password: 'admin123' };
-  }
-}
+import { useAdminAuth } from '../../lib/adminAuth';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
+  const { signIn, isAdmin, loading: sessionLoading } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!sessionLoading && isAdmin) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [sessionLoading, isAdmin, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    const credentials = getCredentials();
-
-    if (email === credentials.email && password === credentials.password) {
-      setLoading(true);
-      setTimeout(() => {
-        localStorage.setItem('kumpuni_admin', JSON.stringify({ email, loggedInAt: Date.now() }));
-        navigate('/admin/dashboard');
-      }, 800);
-    } else {
-      setError(`Invalid credentials. Use ${credentials.email}`);
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+      navigate('/admin/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,6 +55,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@kumpuni.com"
+              autoComplete="email"
               className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30 focus:border-[#6DBE75]"
               required
             />
@@ -86,6 +69,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                autoComplete="current-password"
                 className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30 focus:border-[#6DBE75]"
                 required
               />
@@ -101,7 +85,7 @@ export default function AdminLoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || sessionLoading}
             className="w-full bg-[#6DBE75] hover:bg-[#5CAE65] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
           >
             {loading ? (
@@ -115,7 +99,7 @@ export default function AdminLoginPage() {
           </button>
 
           <p className="text-center text-xs text-[#9CA3AF]">
-            Demo default: <span className="font-mono">admin@kumpuni.com</span> / <span className="font-mono">admin123</span>
+            Sign in with your Supabase admin account.
           </p>
         </form>
       </div>

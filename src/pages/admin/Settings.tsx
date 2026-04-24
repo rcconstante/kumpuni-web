@@ -1,78 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ClipboardList,
-  Store,
-  Settings,
-  LogOut,
-  Save,
-  Lock,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-} from 'lucide-react';
-import {
-  getBusinessApplications,
-  getVerifiedBusinessListings,
-} from '../../data/mockApplications';
-
-type AdminCredentials = {
-  email: string;
-  password: string;
-};
-
-type AdminPreferences = {
-  notifyPending: boolean;
-  weeklyDigest: boolean;
-};
-
-const CREDENTIALS_KEY = 'kumpuni_admin_credentials';
-const PREFERENCES_KEY = 'kumpuni_admin_preferences';
-
-function getCredentials(): AdminCredentials {
-  try {
-    const stored = localStorage.getItem(CREDENTIALS_KEY);
-    if (!stored) {
-      return { email: 'admin@kumpuni.com', password: 'admin123' };
-    }
-    const parsed = JSON.parse(stored) as Partial<AdminCredentials>;
-    return {
-      email: parsed.email || 'admin@kumpuni.com',
-      password: parsed.password || 'admin123',
-    };
-  } catch {
-    return { email: 'admin@kumpuni.com', password: 'admin123' };
-  }
-}
-
-function getPreferences(): AdminPreferences {
-  try {
-    const stored = localStorage.getItem(PREFERENCES_KEY);
-    if (!stored) {
-      return { notifyPending: true, weeklyDigest: false };
-    }
-    const parsed = JSON.parse(stored) as Partial<AdminPreferences>;
-    return {
-      notifyPending: parsed.notifyPending ?? true,
-      weeklyDigest: parsed.weeklyDigest ?? false,
-    };
-  } catch {
-    return { notifyPending: true, weeklyDigest: false };
-  }
-}
+import { Eye, EyeOff, Lock, Save, ShieldCheck } from 'lucide-react';
+import { useAdminAuth, useRequireAdmin } from '../../lib/adminAuth';
+import { supabase } from '../../lib/supabase';
+import { AdminLayout } from './AdminLayout';
 
 export default function AdminSettingsPage() {
-  const navigate = useNavigate();
-
-  const session = localStorage.getItem('kumpuni_admin');
-  if (!session) {
-    navigate('/admin');
-    return null;
-  }
-
-  const [creds, setCreds] = useState<AdminCredentials>(() => getCredentials());
-  const [prefs, setPrefs] = useState<AdminPreferences>(() => getPreferences());
+  const { ready } = useRequireAdmin();
+  const { user } = useAdminAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -83,42 +17,59 @@ export default function AdminSettingsPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const pendingCount = getBusinessApplications().filter(
-    (application) => application.status === 'pending'
-  ).length;
-  const verifiedCount = getVerifiedBusinessListings().length;
+  if (!ready) return null;
 
-  const savePreferences = () => {
-    setError('');
-    setSuccess('');
-    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs));
-    setSuccess('Settings saved.');
-  };
-
-  const changePassword = (e: React.FormEvent) => {
+  const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    if (currentPassword !== creds.password) {
+    if (!user?.email) {
+      setError('No active session.');
+      return;
+    }
+    if (!currentPassword) {
+      setError('Please enter your current password.');
+      return;
+    }
+    if (newPassword.length < 12) {
+      setError('New password must be at least 12 characters.');
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      setError('Password must contain upper, lower and a number.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setError('New password must be different from the current one.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+
+    setSaving(true);
+    // Re-authenticate to ensure the session token isn't simply hijacked.
+    const { error: reauthErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (reauthErr) {
+      setSaving(false);
       setError('Current password is incorrect.');
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters.');
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+
+    if (updateError) {
+      setError(updateError.message);
       return;
     }
-
-    if (newPassword !== confirmPassword) {
-      setError('New password and confirm password do not match.');
-      return;
-    }
-
-    const updated = { ...creds, password: newPassword };
-    localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(updated));
-    setCreds(updated);
 
     setCurrentPassword('');
     setNewPassword('');
@@ -126,163 +77,82 @@ export default function AdminSettingsPage() {
     setSuccess('Password updated successfully.');
   };
 
-  const logout = () => {
-    localStorage.removeItem('kumpuni_admin');
-    navigate('/admin');
-  };
-
   return (
-    <div className="min-h-screen bg-[#F7F7F5] flex">
-      <aside className="w-64 bg-white border-r border-[#E5E7EB] hidden md:flex flex-col">
-        <div className="p-6 border-b border-[#E5E7EB]">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Kumpuni" className="w-9 h-9 rounded-lg" />
-            <span className="font-bold text-[#1F2937]">Kumpuni Admin</span>
+    <AdminLayout active="settings">
+      <div className="p-6 lg:p-10 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold text-[#1F2937] mb-2">Settings</h1>
+        <p className="text-sm text-[#6B7280] mb-8">Manage your admin account.</p>
+
+        {error && (
+          <div className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+            {error}
           </div>
-        </div>
-        <nav className="flex-1 p-4 space-y-1">
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" onClick={() => navigate('/admin/dashboard')} />
-          <SidebarItem
-            icon={ClipboardList}
-            label="Applications"
-            count={pendingCount}
-            onClick={() => navigate('/admin/applications')}
-          />
-          <SidebarItem
-            icon={Store}
-            label="Businesses"
-            count={verifiedCount}
-            onClick={() => navigate('/admin/businesses')}
-          />
-          <SidebarItem icon={Settings} label="Settings" active onClick={() => navigate('/admin/settings')} />
-        </nav>
-        <div className="p-4 border-t border-[#E5E7EB]">
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-[#6B7280] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1">
-        <div className="p-6 lg:p-10 max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-[#1F2937] mb-2">Settings</h1>
-          <p className="text-sm text-[#6B7280] mb-8">Manage admin account and security settings.</p>
-
-          {error && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-5 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
-              {success}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <section className="bg-white border border-[#E5E7EB] rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <ShieldCheck size={18} className="text-[#6DBE75]" />
-                <h2 className="font-bold text-[#1F2937]">Account</h2>
-              </div>
-              <label className="block text-sm font-semibold text-[#374151] mb-1.5">Admin Email</label>
-              <input
-                type="email"
-                value={creds.email}
-                disabled
-                className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#6B7280]"
-              />
-              <p className="text-xs text-[#9CA3AF] mt-2">
-                This demo uses a single admin account.
-              </p>
-            </section>
-
-            <section className="bg-white border border-[#E5E7EB] rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Save size={18} className="text-[#6DBE75]" />
-                <h2 className="font-bold text-[#1F2937]">Preferences</h2>
-              </div>
-
-              <label className="flex items-start gap-3 mb-4">
-                <input
-                  type="checkbox"
-                  checked={prefs.notifyPending}
-                  onChange={(e) => setPrefs((prev) => ({ ...prev, notifyPending: e.target.checked }))}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-[#1F2937]">Pending review alerts</p>
-                  <p className="text-xs text-[#6B7280]">Show a badge whenever a business needs review.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 mb-5">
-                <input
-                  type="checkbox"
-                  checked={prefs.weeklyDigest}
-                  onChange={(e) => setPrefs((prev) => ({ ...prev, weeklyDigest: e.target.checked }))}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-[#1F2937]">Weekly digest</p>
-                  <p className="text-xs text-[#6B7280]">Receive weekly summary insights for your listings.</p>
-                </div>
-              </label>
-
-              <button
-                type="button"
-                onClick={savePreferences}
-                className="w-full bg-[#6DBE75] hover:bg-[#5CAE65] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
-              >
-                Save Preferences
-              </button>
-            </section>
+        )}
+        {success && (
+          <div className="mb-5 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
+            {success}
           </div>
+        )}
 
-          <section className="bg-white border border-[#E5E7EB] rounded-2xl p-6 mt-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <section className="bg-white border border-[#E5E7EB] rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldCheck size={18} className="text-[#6DBE75]" />
+              <h2 className="font-bold text-[#1F2937]">Account</h2>
+            </div>
+            <label className="block text-sm font-semibold text-[#374151] mb-1.5">Admin Email</label>
+            <input
+              type="email"
+              value={user?.email ?? ''}
+              disabled
+              className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl px-4 py-3 text-sm text-[#6B7280]"
+            />
+            <p className="text-xs text-[#9CA3AF] mt-2">
+              Manage admin users in the Supabase dashboard (Authentication → Users) and the
+              <code className="mx-1 bg-[#F3F4F6] px-1.5 py-0.5 rounded">public.admins</code> table.
+            </p>
+          </section>
+
+          <section className="bg-white border border-[#E5E7EB] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lock size={18} className="text-[#6DBE75]" />
               <h2 className="font-bold text-[#1F2937]">Change Password</h2>
             </div>
-
-            <form onSubmit={changePassword} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <form onSubmit={changePassword} className="space-y-4">
               <PasswordField
                 label="Current Password"
                 value={currentPassword}
                 onChange={setCurrentPassword}
-                visible={showCurrent}
-                setVisible={setShowCurrent}
+                show={showCurrent}
+                onToggle={() => setShowCurrent(!showCurrent)}
               />
               <PasswordField
-                label="New Password"
+                label="New Password (min 12 chars, mixed case + number)"
                 value={newPassword}
                 onChange={setNewPassword}
-                visible={showNew}
-                setVisible={setShowNew}
+                show={showNew}
+                onToggle={() => setShowNew(!showNew)}
               />
               <PasswordField
-                label="Confirm Password"
+                label="Confirm New Password"
                 value={confirmPassword}
                 onChange={setConfirmPassword}
-                visible={showConfirm}
-                setVisible={setShowConfirm}
+                show={showConfirm}
+                onToggle={() => setShowConfirm(!showConfirm)}
               />
-
               <button
                 type="submit"
-                className="md:col-span-3 w-full md:w-auto bg-[#1F2937] hover:bg-black text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+                disabled={saving}
+                className="w-full bg-[#6DBE75] hover:bg-[#5CAE65] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                Update Password
+                <Save size={16} />
+                {saving ? 'Updating…' : 'Update Password'}
               </button>
             </form>
           </section>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 
@@ -290,55 +160,34 @@ function PasswordField({
   label,
   value,
   onChange,
-  visible,
-  setVisible,
+  show,
+  onToggle,
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
-  visible: boolean;
-  setVisible: (next: boolean) => void;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
 }) {
   return (
     <div>
       <label className="block text-sm font-semibold text-[#374151] mb-1.5">{label}</label>
       <div className="relative">
         <input
-          type={visible ? 'text' : 'password'}
+          type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30 focus:border-[#6DBE75]"
+          className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30 focus:border-[#6DBE75]"
           required
         />
         <button
           type="button"
-          onClick={() => setVisible(!visible)}
+          onClick={onToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#374151]"
         >
-          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
     </div>
-  );
-}
-
-function SidebarItem({ icon: Icon, label, active, count, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-        active
-          ? 'bg-[#6DBE75]/10 text-[#6DBE75]'
-          : 'text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#374151]'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon size={18} />
-        {label}
-      </div>
-      {count !== undefined && count > 0 && (
-        <span className="bg-[#6DBE75] text-white text-xs font-bold px-2 py-0.5 rounded-full">{count}</span>
-      )}
-    </button>
   );
 }
