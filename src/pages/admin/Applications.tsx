@@ -5,14 +5,19 @@ import {
   Image as ImageIcon,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Search,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 import {
   BusinessApplication,
+  BusinessCategory,
+  deleteBusinessListing,
   fetchBusinessApplications,
   getPaymentProofSignedUrl,
+  updateApplicationData,
   updateBusinessApplicationStatus,
 } from '../../data/businesses';
 import { useRequireAdmin } from '../../lib/adminAuth';
@@ -29,7 +34,9 @@ export default function AdminApplicationsPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<BusinessApplication | null>(null);
+  const [editing, setEditing] = useState<BusinessApplication | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const reload = async () => {
@@ -80,6 +87,32 @@ export default function AdminApplicationsPage() {
       setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const deleteApp = async (id: string) => {
+    if (!window.confirm('Delete this application? This cannot be undone.')) return;
+    setError('');
+    try {
+      await deleteBusinessListing(id);
+      setApps((prev) => prev.filter((a) => a.id !== id));
+      if (selected?.id === id) setSelected(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  };
+
+  const saveEdit = async (updated: BusinessApplication) => {
+    setSaving(true);
+    setError('');
+    try {
+      const result = await updateApplicationData(updated.id, updated);
+      setApps((prev) => prev.map((a) => (a.id === updated.id ? result ?? a : a)));
+      setEditing(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -237,33 +270,47 @@ export default function AdminApplicationsPage() {
                     <td className="px-6 py-4">
                       <StatusBadge status={app.status} />
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <button
                           onClick={() => setSelected(app)}
-                          className="text-[#6B7280] hover:text-[#1F2937] px-3 py-1.5 rounded-lg hover:bg-[#F3F4F6] text-xs font-medium transition-colors"
+                          className="text-[#6B7280] hover:text-[#1F2937] px-2.5 py-1.5 rounded-lg hover:bg-[#F3F4F6] text-xs font-medium transition-colors"
                         >
                           View
                         </button>
-                        {app.status === 'pending' && (
-                          <>
-                            <button
-                              disabled={busyId === app.id}
-                              onClick={() => updateStatus(app.id, 'verified')}
-                              className="text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                            >
-                              <CheckCircle size={14} className="inline mr-1" />
-                              Verify
-                            </button>
-                            <button
-                              disabled={busyId === app.id}
-                              onClick={() => updateStatus(app.id, 'rejected')}
-                              className="text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                            >
-                              <XCircle size={14} className="inline mr-1" />
-                              Reject
-                            </button>
-                          </>
+                        <button
+                          onClick={() => { setEditing({ ...app }); setError(''); }}
+                          className="p-1.5 text-[#6B7280] hover:text-[#1F2937] hover:bg-[#F3F4F6] rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => deleteApp(app.id)}
+                          className="p-1.5 text-[#6B7280] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                        {app.status !== 'verified' && (
+                          <button
+                            disabled={busyId === app.id}
+                            onClick={() => updateStatus(app.id, 'verified')}
+                            className="text-green-700 hover:bg-green-50 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle size={13} className="inline mr-0.5" />
+                            Verify
+                          </button>
+                        )}
+                        {app.status !== 'rejected' && (
+                          <button
+                            disabled={busyId === app.id}
+                            onClick={() => updateStatus(app.id, 'rejected')}
+                            className="text-red-700 hover:bg-red-50 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            <XCircle size={13} className="inline mr-0.5" />
+                            Reject
+                          </button>
                         )}
                       </div>
                     </td>
@@ -289,7 +336,137 @@ export default function AdminApplicationsPage() {
           onUpdate={updateStatus}
         />
       )}
+
+      {editing && (
+        <EditModal
+          app={editing}
+          saving={saving}
+          error={error}
+          onChange={setEditing}
+          onSave={() => saveEdit(editing)}
+          onClose={() => { setEditing(null); setError(''); }}
+        />
+      )}
     </AdminLayout>
+  );
+}
+
+const CATEGORIES: BusinessCategory[] = ['Home', 'Plumbing', 'Electronics', 'Car', 'Appliances', 'HVAC'];
+
+function EditModal({
+  app, saving, error, onChange, onSave, onClose,
+}: {
+  app: BusinessApplication;
+  saving: boolean;
+  error: string;
+  onChange: (a: BusinessApplication) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const set = (patch: Partial<BusinessApplication>) => onChange({ ...app, ...patch });
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="p-6 border-b border-[#E5E7EB] flex items-center justify-between sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-bold text-[#1F2937]">Edit Application — {app.name}</h2>
+          <button onClick={onClose} className="text-[#9CA3AF] hover:text-[#1F2937] p-1 rounded-lg hover:bg-[#F3F4F6]">
+            <XCircle size={22} />
+          </button>
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EField label="Business Name *" value={app.name} onChange={(v) => set({ name: v })} />
+            <div>
+              <label className="block text-sm font-semibold text-[#374151] mb-1">Category</label>
+              <select value={app.category} onChange={(e) => set({ category: e.target.value as BusinessCategory })}
+                className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30">
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <EField label="Address" value={app.address} onChange={(v) => set({ address: v })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EField label="City" value={app.city} onChange={(v) => set({ city: v })} />
+            <EField label="Country" value={app.country} onChange={(v) => set({ country: v })} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EField label="Phone" value={app.phone} onChange={(v) => set({ phone: v })} />
+            <EField label="Email" value={app.email} onChange={(v) => set({ email: v })} />
+          </div>
+          <EField label="Description" value={app.description} onChange={(v) => set({ description: v })} multiline />
+          <EField label="Google Maps Link" value={app.googleMapsUrl} onChange={(v) => set({ googleMapsUrl: v })} />
+
+          <div className="p-4 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+            <p className="text-xs font-semibold text-[#2E7D32] uppercase tracking-wider mb-3">📍 Coordinates</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-[#374151] mb-1">Latitude</label>
+                <input type="number" step="any" min="-90" max="90" value={app.lat ?? ''}
+                  onChange={(e) => set({ lat: parseFloat(e.target.value) || 0 })}
+                  placeholder="e.g. 14.5995"
+                  className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#374151] mb-1">Longitude</label>
+                <input type="number" step="any" min="-180" max="180" value={app.lng ?? ''}
+                  onChange={(e) => set({ lng: parseFloat(e.target.value) || 0 })}
+                  placeholder="e.g. 120.9842"
+                  className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EField label="Hours" value={app.hours ?? ''} onChange={(v) => set({ hours: v })} placeholder="e.g. Mon-Sat 8am-6pm" />
+            <div>
+              <label className="block text-sm font-semibold text-[#374151] mb-1">Status</label>
+              <select value={app.status} onChange={(e) => set({ status: e.target.value as BusinessApplication['status'] })}
+                className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30">
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-[#374151] cursor-pointer">
+            <input type="checkbox" checked={!!app.isPremium} onChange={(e) => set({ isPremium: e.target.checked })} className="accent-[#6DBE75] w-4 h-4" />
+            <span className="font-medium">Premium / Highlighted listing</span>
+          </label>
+
+          <div className="pt-4 flex gap-3">
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-[#6DBE75] hover:bg-[#5CAE65] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60">
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="flex-1 bg-white border border-[#E5E7EB] text-[#374151] font-semibold py-2.5 rounded-xl text-sm hover:bg-[#F9FAFB] transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EField({ label, value, onChange, multiline, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-[#374151] mb-1">{label}</label>
+      {multiline ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} placeholder={placeholder}
+          className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30 resize-none" />
+      ) : (
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6DBE75]/30" />
+      )}
+    </div>
   );
 }
 

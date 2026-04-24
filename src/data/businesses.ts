@@ -216,6 +216,81 @@ export async function deleteBusinessListing(id: string): Promise<boolean> {
   return true;
 }
 
+export async function createBusinessListing(
+  input: Partial<BusinessApplication> & { name: string; category: BusinessCategory }
+): Promise<BusinessApplication> {
+  const lat = Number.isFinite(Number(input.lat)) ? Number(input.lat) : 14.5995;
+  const lng = Number.isFinite(Number(input.lng)) ? Number(input.lng) : 120.9842;
+  const safeMaps = safeHttpUrl(input.googleMapsUrl ?? '');
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .insert({
+      name: (input.name ?? '').trim().slice(0, 120),
+      category: input.category ?? 'Home',
+      address: (input.address ?? '').trim().slice(0, 240),
+      city: (input.city ?? '').trim().slice(0, 80),
+      country: (input.country ?? '').trim().slice(0, 80),
+      phone: (input.phone ?? '').trim().slice(0, 40),
+      email: (input.email ?? '').trim().slice(0, 160).toLowerCase(),
+      description: (input.description ?? '').trim().slice(0, 2000),
+      google_maps_url: (safeMaps ?? `https://maps.google.com/?q=${lat},${lng}`).slice(0, 500),
+      lat,
+      lng,
+      logo_url: input.logoUrl?.trim() || null,
+      image_url: input.imageUrl?.trim() || null,
+      hours: input.hours?.trim() || null,
+      is_premium: !!input.isPremium,
+      status: input.status ?? 'verified',
+      rating: input.rating ?? 5.0,
+      reviews: input.reviews ?? 0,
+    })
+    .select(SELECT_COLS)
+    .single();
+
+  if (error) throw new Error(`Could not create business: ${error.message}`);
+  return rowToApplication(data as BusinessRow);
+}
+
+export async function updateApplicationData(
+  id: string,
+  updated: Partial<BusinessApplication>
+): Promise<BusinessApplication | undefined> {
+  const lat = updated.lat != null && Number.isFinite(Number(updated.lat)) ? Number(updated.lat) : undefined;
+  const lng = updated.lng != null && Number.isFinite(Number(updated.lng)) ? Number(updated.lng) : undefined;
+  const safeMaps = updated.googleMapsUrl ? safeHttpUrl(updated.googleMapsUrl) : undefined;
+
+  const patch: Record<string, unknown> = {};
+  if (updated.name !== undefined) patch.name = updated.name.trim().slice(0, 120);
+  if (updated.category !== undefined) patch.category = updated.category;
+  if (updated.address !== undefined) patch.address = updated.address.trim().slice(0, 240);
+  if (updated.city !== undefined) patch.city = updated.city.trim().slice(0, 80);
+  if (updated.country !== undefined) patch.country = updated.country.trim().slice(0, 80);
+  if (updated.phone !== undefined) patch.phone = updated.phone.trim().slice(0, 40);
+  if (updated.email !== undefined) patch.email = updated.email.trim().slice(0, 160).toLowerCase();
+  if (updated.description !== undefined) patch.description = updated.description.trim().slice(0, 2000);
+  if (safeMaps !== undefined) patch.google_maps_url = safeMaps.slice(0, 500);
+  if (lat !== undefined) patch.lat = lat;
+  if (lng !== undefined) patch.lng = lng;
+  if (updated.logoUrl !== undefined) patch.logo_url = updated.logoUrl?.trim() || null;
+  if (updated.imageUrl !== undefined) patch.image_url = updated.imageUrl?.trim() || null;
+  if (updated.hours !== undefined) patch.hours = updated.hours?.trim() || null;
+  if (updated.isPremium !== undefined) patch.is_premium = !!updated.isPremium;
+  if (updated.status !== undefined) patch.status = updated.status;
+  if (updated.rating !== undefined) patch.rating = updated.rating;
+  if (updated.reviews !== undefined) patch.reviews = updated.reviews;
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .update(patch)
+    .eq('id', id)
+    .select(SELECT_COLS)
+    .maybeSingle();
+
+  if (error) throw new Error(`Could not update: ${error.message}`);
+  return data ? rowToApplication(data as BusinessRow) : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Image upload helper (admin)
 // ---------------------------------------------------------------------------
